@@ -50,19 +50,25 @@ using CryptoPP::SecByteBlock;
 
 
 int main(int argc, char* argv[]) {
+	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+	DWORD mode = 0;
+	GetConsoleMode(hStdin, &mode);
+	SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
+	string password;
+	cout << "Key ID: 0. Enter the password" << endl;
+	getline(std::cin, password);
+	SetConsoleMode(hStdin, mode | (ENABLE_ECHO_INPUT));
+
+	
+	
 	int keyId = stoi(string(argv[2]));
-
-
-
-	std::ifstream t("msg.txt");
+	string file;
+	cout << "Enter file to encrypt / decrypt : ";
+	std::cin >> file;
+	std::ifstream t(file);
 	std::string text((std::istreambuf_iterator<char>(t)),
 		std::istreambuf_iterator<char>());
-	string bText = "";
-	for (std::size_t i = 0; i < text.size(); ++i)
-	{
-		bText +=std::bitset<8>(text.c_str()[i]).to_string();
-	}
-	cout << bText << endl;
+	string bText;
 
 	std::ifstream t2(argv[1]);
 	std::string keys((std::istreambuf_iterator<char>(t2)),
@@ -91,44 +97,18 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	string str1 = "";
-	char abc[3][16];
+	string properKey = "";
+	char passwordFiller[] = { 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
 	for (int i = 0; i < 16; i++) {
-		char test[] = { 'a', 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
-		abc[0][i] = key[0].at(i) ^ test[i];
-		str1 += abc[0][i];
+		if (i < password.length()) {
+			properKey += key[keyId].at(i) ^ password[i];
+		}
+		else {
+			properKey += key[keyId].at(i) ^ passwordFiller[i];
+		}
 	}
-	str1 = str1 + "\n";
 
-	for (int i = 0; i < 16; i++) {
-		char test[] = { 'b', 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
-		abc[1][i] = key[1].at(i) ^ test[i];
-		str1 += abc[1][i];
-
-	}
-	str1 = str1 + "\n";
-
-	for (int i = 0; i < 16; i++) {
-		char test[] = { 'c', 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
-		abc[2][i] = key[2].at(i) ^ test[i];
-		str1 += abc[2][i];
-
-	}
-	str1 = str1 + "\n";
-
-	std::ofstream out("xor.txt");
-	cout << str1;
-	out << str1;
-	out.close();
-
-
-	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-	DWORD mode = 0;
-	GetConsoleMode(hStdin, &mode);
-	SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
-	string password;
-	cout << "Key ID: 0. Enter the password" << endl;
-	getline(std::cin, password);
+	
 
 	string pMode;
 	std::cout << "Ciphering (c), or deciphering(d)? :";
@@ -146,7 +126,7 @@ int main(int argc, char* argv[]) {
 
 	// Ciphering
 	if (pMode.at(0) == 'c') {
-		CryptoPP::AES::Encryption aesEncryption((byte *)key[keyId].c_str(), CryptoPP::AES::DEFAULT_KEYLENGTH);
+		CryptoPP::AES::Encryption aesEncryption((byte *)properKey.c_str(), CryptoPP::AES::DEFAULT_KEYLENGTH);
 		CryptoPP::CBC_Mode_ExternalCipher::Encryption cbcEncryption(aesEncryption, (byte *)iv.c_str());
 
 		CryptoPP::StreamTransformationFilter stfEncryptor(cbcEncryption, new CryptoPP::StringSink(ciphertext));
@@ -169,34 +149,40 @@ int main(int argc, char* argv[]) {
 		for (; std::sscanf(hex_str, "%2x", &ch) == 1; hex_str += 2)
 			result_string += ch;
 
-		bText = "";
-		for (std::size_t i = 0; i < result_string.size(); ++i)
-		{
-			bText += std::bitset<8>(result_string.c_str()[i]).to_string();
-		}
-		cout << bText << endl;
 
-		std::ofstream out("c.txt");
-		out << bText;
+
+		std::ofstream out(file);
+		out << result_string;
 		out.close();
 	}
 	// Deciphering
 	else if (pMode.at(0) == 'd') {
+		try {
 
-		CryptoPP::AES::Decryption aesDecryption((byte *)key[keyId].c_str(), CryptoPP::AES::DEFAULT_KEYLENGTH);
-		CryptoPP::CBC_Mode_ExternalCipher::Decryption cbcDecryption(aesDecryption, (byte *)iv.c_str());
+			CryptoPP::AES::Decryption aesDecryption((byte *)properKey.c_str(), CryptoPP::AES::DEFAULT_KEYLENGTH);
+			CryptoPP::CBC_Mode_ExternalCipher::Decryption cbcDecryption(aesDecryption, (byte *)iv.c_str());
 
-		CryptoPP::StreamTransformationFilter stfDecryptor(cbcDecryption, new CryptoPP::StringSink(result_string));
-		stfDecryptor.Put(reinterpret_cast<const unsigned char*>(text.c_str()), text.size());
-		stfDecryptor.MessageEnd();
-		
-		std::ofstream out("d.txt");
-		out << result_string;
-		out.close();
+			CryptoPP::StreamTransformationFilter stfDecryptor(cbcDecryption, new CryptoPP::StringSink(decryptedtext));
+			stfDecryptor.Put(reinterpret_cast<const unsigned char*>(text.c_str()), text.size());
+			stfDecryptor.MessageEnd();
+
+			std::ofstream out(file);
+			out << decryptedtext;
+			out.close();
+		}
+		catch (CryptoPP::Exception& e) {
+			cout << "Invalid key!" << endl;
+			system("pause");
+			exit(1);
+		}
+
 	}
 	else {
 		cout << "Unknown mode!" << endl;
 	}
+
+
+	
 
 
 
