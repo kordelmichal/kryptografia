@@ -62,13 +62,14 @@ int main(int argc, char* argv[]) {
 	
 	
 	int keyId = stoi(string(argv[2]));
+	int cMode = stoi(string(argv[3]));
 	string file;
 	cout << "Enter file to encrypt / decrypt : ";
 	std::cin >> file;
 	std::ifstream t(file);
 	std::string text((std::istreambuf_iterator<char>(t)),
 		std::istreambuf_iterator<char>());
-	string bText;
+	t.close();
 
 	std::ifstream t2(argv[1]);
 	std::string keys((std::istreambuf_iterator<char>(t2)),
@@ -123,66 +124,190 @@ int main(int argc, char* argv[]) {
 	std::string result_string;
 
 
+	if (cMode == 0) {
+		// Ciphering
+		if (pMode.at(0) == 'c') {
+			CryptoPP::AES::Encryption aesEncryption((byte *)properKey.c_str(), CryptoPP::AES::DEFAULT_KEYLENGTH);
+			CryptoPP::CBC_Mode_ExternalCipher::Encryption cbcEncryption(aesEncryption, (byte *)iv.c_str());
 
-	// Ciphering
-	if (pMode.at(0) == 'c') {
-		CryptoPP::AES::Encryption aesEncryption((byte *)properKey.c_str(), CryptoPP::AES::DEFAULT_KEYLENGTH);
-		CryptoPP::CBC_Mode_ExternalCipher::Encryption cbcEncryption(aesEncryption, (byte *)iv.c_str());
+			CryptoPP::StreamTransformationFilter stfEncryptor(cbcEncryption, new CryptoPP::StringSink(ciphertext));
+			stfEncryptor.Put(reinterpret_cast<const unsigned char*>((const char*)text.c_str()), text.length() + 1);
+			stfEncryptor.MessageEnd();
 
-		CryptoPP::StreamTransformationFilter stfEncryptor(cbcEncryption, new CryptoPP::StringSink(ciphertext));
-		stfEncryptor.Put(reinterpret_cast<const unsigned char*>((const char*)text.c_str()), text.length() + 1);
-		stfEncryptor.MessageEnd();
+			encoded.clear();
+			StringSource(ciphertext, true,
+				new HexEncoder(
+					new StringSink(encoded)
+					) // HexEncoder
+				); // StringSource
 
-		encoded.clear();
-		StringSource(ciphertext, true,
-			new HexEncoder(
-				new StringSink(encoded)
-				) // HexEncoder
-			); // StringSource
+			char *name2;
+			name2 = (char*)malloc(encoded.length() + 1);
 
-		char *name2;
-		name2 = (char*)malloc(encoded.length() + 1);
-
-		strcpy(name2, encoded.c_str());
-		const char* hex_str = name2;
-		unsigned int ch;
-		for (; std::sscanf(hex_str, "%2x", &ch) == 1; hex_str += 2)
-			result_string += ch;
+			strcpy(name2, encoded.c_str());
+			const char* hex_str = name2;
+			unsigned int ch;
+			for (; std::sscanf(hex_str, "%2x", &ch) == 1; hex_str += 2)
+				result_string += ch;
 
 
-
-		std::ofstream out(file);
-		out << result_string;
-		out.close();
-	}
-	// Deciphering
-	else if (pMode.at(0) == 'd') {
-		try {
-
-			CryptoPP::AES::Decryption aesDecryption((byte *)properKey.c_str(), CryptoPP::AES::DEFAULT_KEYLENGTH);
-			CryptoPP::CBC_Mode_ExternalCipher::Decryption cbcDecryption(aesDecryption, (byte *)iv.c_str());
-
-			CryptoPP::StreamTransformationFilter stfDecryptor(cbcDecryption, new CryptoPP::StringSink(decryptedtext));
-			stfDecryptor.Put(reinterpret_cast<const unsigned char*>(text.c_str()), text.size());
-			stfDecryptor.MessageEnd();
-
+			cout << encoded << endl;
 			std::ofstream out(file);
-			out << decryptedtext;
+			out << encoded;
 			out.close();
 		}
-		catch (CryptoPP::Exception& e) {
-			cout << "Invalid key!" << endl;
-			system("pause");
-			exit(1);
+		// Deciphering
+		else if (pMode.at(0) == 'd') {
+			try {
+				string decoded;
+
+				HexDecoder decoder;
+
+				decoder.Put((byte*)text.data(), text.size());
+				decoder.MessageEnd();
+
+				size_t size = decoder.MaxRetrievable();
+				if (size && size <= SIZE_MAX)
+				{
+					decoded.resize(size);
+					decoder.Get((byte*)decoded.data(), decoded.size());
+				}
+
+				CryptoPP::AES::Decryption aesDecryption((byte *)properKey.c_str(), CryptoPP::AES::DEFAULT_KEYLENGTH);
+				CryptoPP::CBC_Mode_ExternalCipher::Decryption cbcDecryption(aesDecryption, (byte *)iv.c_str());
+
+				CryptoPP::StreamTransformationFilter stfDecryptor(cbcDecryption, new CryptoPP::StringSink(decryptedtext));
+				stfDecryptor.Put(reinterpret_cast<const unsigned char*>(decoded.c_str()), decoded.size());
+				stfDecryptor.MessageEnd();
+
+				std::ofstream out(file);
+				out << decryptedtext;
+				out.close();
+			}
+			catch (CryptoPP::Exception& e) {
+				cout << "Invalid key!" << endl;
+				system("pause");
+				exit(1);
+			}
+
+		}
+		else {
+			cout << "Unknown mode!" << endl;
+		}
+	}
+
+	if (cMode == 1) {
+		AutoSeededRandomPool prng;
+		byte b[16];
+		for (int i = 0; i < 16; i++) { b[i] = properKey.at(i); }
+		SecByteBlock key_ctr(b, 16);
+		//prng.GenerateBlock(key_ctr, key_ctr.size());
+
+		
+		byte ctr[CryptoPP::AES::BLOCKSIZE];
+		for (int i = 0; i < 16; i++) { 
+			ctr[i] = i; 
 		}
 
-	}
-	else {
-		cout << "Unknown mode!" << endl;
+		//prng.GenerateBlock(ctr, sizeof(ctr));
+		string cipher;
+		
+		// Ciphering
+		if (pMode.at(0) == 'c') {
+			try
+			{
+
+				CryptoPP::CTR_Mode< CryptoPP::AES >::Encryption e;
+				e.SetKeyWithIV(key_ctr, key_ctr.size(), ctr);
+
+				// The StreamTransformationFilter adds padding
+				//  as required. ECB and CBC Mode must be padded
+				//  to the block size of the cipher. CTR does not.
+				StringSource ss1(text, true,
+					new StreamTransformationFilter(e,
+						new StringSink(cipher)
+						) // StreamTransformationFilter      
+					); // StringSource
+			}
+			catch (CryptoPP::Exception& e)
+			{
+				cerr << e.what() << endl;
+				exit(1);
+			}
+
+			/*********************************\
+			\*********************************/
+
+			// Pretty print cipher text
+			StringSource ss2(cipher, true,
+				new HexEncoder(
+					new StringSink(encoded)
+					) // HexEncoder
+				); // StringSource
+
+			char *name2;
+			name2 = (char*)malloc(encoded.length() + 1);
+
+			strcpy(name2, encoded.c_str());
+			const char* hex_str = name2;
+			unsigned int ch;
+			for (; std::sscanf(hex_str, "%2x", &ch) == 1; hex_str += 2)
+				result_string += ch;
+
+			std::ofstream out(file);
+			out << encoded;
+			out.close();
+
+		}
+
+		/*********************************\
+		\*********************************/
+		// Deciphering
+		if (pMode.at(0) == 'd') {
+			try
+			{
+				string decoded;
+
+				HexDecoder decoder;
+
+				decoder.Put((byte*)text.data(), text.size());
+				decoder.MessageEnd();
+
+				size_t size = decoder.MaxRetrievable();
+				if (size && size <= SIZE_MAX)
+				{
+					decoded.resize(size);
+					decoder.Get((byte*)decoded.data(), decoded.size());
+				}
+
+				//CryptoPP::CTR_ModePolicy::IncrementCounterBy256();
+				CryptoPP::CTR_Mode< CryptoPP::AES >::Decryption d;
+				d.SetKeyWithIV(key_ctr, key_ctr.size(), ctr);
+
+				// The StreamTransformationFilter removes
+				//  padding as required.
+				StringSource ss3(decoded, true,
+					new StreamTransformationFilter(d,
+						new StringSink(decryptedtext)
+						) // StreamTransformationFilter
+					); // StringSource
+
+
+				cout << decryptedtext << endl;
+				std::ofstream out(file);
+				out << decryptedtext;
+				out.close();
+			}
+			catch (CryptoPP::Exception& e)
+			{
+				cout << "Invalid key!" << endl;
+				system("pause");
+				exit(1);
+			}
+		}
 	}
 
 
-	
 
 
 
