@@ -127,6 +127,7 @@
   <ItemGroup>
     <ClCompile Include="crypto.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="maine.cpp" />
     <ClCompile Include="MP3Player.cpp" />
   </ItemGroup>
   <ItemGroup>

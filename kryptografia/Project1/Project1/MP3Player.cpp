@@ -1,10 +1,5 @@
 
-/* ----------------------------------------------------------------------
-* MP3Player.h C++ class using plain Windows API
-*
-* Author: @lx/Alexandre Mutel,  blog: http://code4k.blogspot.com
-* The software is provided "as is", without warranty of any kind.
-* ----------------------------------------------------------------------*/
+
 #pragma once
 #include <windows.h>
 #include <stdio.h>
@@ -26,15 +21,7 @@
 #define mp3Assert(function) (function)
 #endif
 
-/*
-* MP3Player class.
-* Usage :
-*   MP3Player player;
-*   player.OpenFromFile("your.mp3");
-*   player.Play();
-*   Sleep((DWORD)(player.GetDuration()+1));
-*   player.Close();
-*/
+
 class MP3Player {
 private:
 	HWAVEOUT hWaveOut;
@@ -43,9 +30,7 @@ private:
 	BYTE* soundBuffer;
 public:
 
-	/*
-	* OpenFromFile : loads a MP3 file and convert it internaly to a PCM format, ready for sound playback.
-	*/
+
 	HRESULT OpenFromFile(TCHAR* inputFileName) {
 		// Open the mp3 file
 		HANDLE hFile = CreateFile(inputFileName, // open MYFILE.TXT
@@ -260,7 +245,6 @@ public:
 		mp3Assert(mp3Stream->Seek(seekValue, STREAM_SEEK_SET, &newPosition));
 
 		while (1) {
-			// suck in some MP3 data
 			ULONG count;
 			mp3Assert(mp3Stream->Read(mp3BlockBuffer, MP3_BLOCK_SIZE, &count));
 			if (count != MP3_BLOCK_SIZE)
@@ -344,19 +328,11 @@ int maine(void) {
 	
 	MP3Player player;
 
-	// Open the mp3 from a file...
 	player.OpenFromFile("es.mp3");
-	// or From a memory location!
-	//player.OpenFromMemory(ptrToMP3Song, bytesLength);
+
 
 	player.Play();
 
-	/*while (...) {
-		// Do here your synchro in the demo using
-		...
-			double playerPositionInSeconds = player.GetPosition()
-			...
-	}*/
 	Sleep(10000);
 	player.Close();
 	return 0;
