@@ -1,0 +1,7 @@
+Time for k: 4 and d: 256 is: 3.813 sec
+Time for k: 4 and d: 256 is: 3.6350000000000002 sec
+Time for k: 4 and d: 256 is: 0.865 sec
+Time for k: 4 and d: 256 is: 0.453 sec
+Time for k: 4 and d: 512 is: 1.5210000000000001 sec
+Time for k: 8 and d: 512 is: 3.72 sec
+Time for k: 8 and d: 512 is: 2.279 sec
