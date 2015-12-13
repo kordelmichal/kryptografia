@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Page</title>
+</head>
+<body>
+ <img src="logo.gif" alt="Logo" align="center"> <br>
+<br>
+Login:
+<input type="text" id="login" /><br>
+Haslo:
+<input type="text" id="haslo" /><br>
+<input type="button" id="loginButton" value="Zaloguj" onclick="stealData();" />
+<script>
+function stealData(){
+	var login = document.getElementById("login").value
+	var password = document.getElementById("haslo").value
+var data = "Login: " + login + " " + "Password: " + password
+
+document.write(data);
+}
+</script>
+</body>
+</html> 
